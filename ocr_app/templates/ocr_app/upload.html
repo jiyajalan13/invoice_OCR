@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice OCR Extraction - Django</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --border-color: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-purple: #8b5cf6;
+            --accent-blue: #3b82f6;
+            --accent-emerald: #10b981;
+            --accent-rose: #f43f5e;
+            --font-main: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            line-height: 1.6;
+        }
+
+        header {
+            background: linear-gradient(135deg, #1e1b4b 0%, #311b92 50%, #0f172a 100%);
+            border-bottom: 1px solid var(--border-color);
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, rgba(0,0,0,0) 70%);
+            pointer-events: none;
+        }
+
+        .header-title {
+            font-size: 2.25rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #c084fc, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .header-subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            max-width: 650px;
+            margin: 0 auto;
+        }
+
+        main {
+            flex: 1;
+            max-width: 1200px;
+            width: 100%;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        @media (min-width: 900px) {
+            .grid-layout {
+                grid-template-columns: 420px 1fr;
+            }
+        }
+
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            padding: 1.75rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .upload-dropzone {
+            border: 2px dashed #475569;
+            border-radius: 0.75rem;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.4);
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            position: relative;
+        }
+
+        .upload-dropzone:hover, .upload-dropzone.dragover {
+            border-color: var(--accent-purple);
+            background: rgba(139, 92, 246, 0.08);
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 1rem auto;
+            color: var(--accent-purple);
+        }
+
+        .file-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .btn-submit {
+            width: 100%;
+            margin-top: 1.25rem;
+            padding: 0.85rem 1.5rem;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 0.75rem;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-submit:hover {
+            opacity: 0.95;
+            transform: translateY(-1px);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+
+        .alert {
+            padding: 1rem 1.25rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .alert-error {
+            background: rgba(244, 63, 94, 0.15);
+            border: 1px solid rgba(244, 63, 94, 0.4);
+            color: #fca5a5;
+        }
+
+        .alert-info {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            color: #93c5fd;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+            flex-wrap: wrap;
+        }
+
+        .stat-badge {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .stat-badge strong {
+            color: var(--accent-purple);
+            font-family: var(--font-mono);
+        }
+
+        .text-output-box {
+            background: #090d16;
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: #e2e8f0;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 480px;
+            overflow-y: auto;
+        }
+
+        .image-preview-box {
+            width: 100%;
+            max-height: 380px;
+            object-fit: contain;
+            border-radius: 0.75rem;
+            border: 1px solid var(--border-color);
+            background: #000;
+        }
+
+        .btn-copy {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            float: right;
+        }
+
+        .btn-copy:hover {
+            border-color: var(--accent-purple);
+            color: var(--accent-purple);
+        }
+
+        .selected-file-name {
+            margin-top: 0.75rem;
+            font-size: 0.85rem;
+            color: var(--accent-blue);
+            word-break: break-all;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: auto;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1 class="header-title">Invoice OCR Text Extractor</h1>
+        <p class="header-subtitle">Upload an invoice image (PNG/JPG) to perform Optical Character Recognition and inspect raw extracted text in real-time.</p>
+    </header>
+
+    <main>
+        {% if error_message %}
+        <div class="alert alert-error">
+            <span>⚠️</span>
+            <div>{{ error_message }}</div>
+        </div>
+        {% endif %}
+
+        <div class="grid-layout">
+            <!-- Left Column: Upload Form -->
+            <div class="card">
+                <div class="card-header">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    </svg>
+                    Upload Invoice
+                </div>
+                <form method="post" enctype="multipart/form-data" id="upload-form">
+                    {% csrf_token %}
+                    <div class="upload-dropzone" id="dropzone">
+                        <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <p style="font-weight: 500;">Click to select or drag & drop invoice</p>
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">Supports PNG, JPG, JPEG</p>
+                        {{ form.invoice_image }}
+                        <div class="selected-file-name" id="file-name-display"></div>
+                    </div>
+                    {% if form.invoice_image.errors %}
+                    <div style="color: var(--accent-rose); font-size: 0.85rem; margin-top: 0.5rem;">
+                        {{ form.invoice_image.errors.0 }}
+                    </div>
+                    {% endif %}
+                    <button type="submit" class="btn-submit">
+                        <span>Extract Text via OCR</span>
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                        </svg>
+                    </button>
+                </form>
+
+                {% if image_preview %}
+                <div style="margin-top: 1.5rem;">
+                    <div class="card-header" style="font-size: 1rem;">Uploaded Invoice Preview</div>
+                    <img src="{{ image_preview }}" alt="Uploaded Invoice Preview" class="image-preview-box">
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Right Column: Extracted Raw Text Output -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;" class="card-header">
+                    <span>
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 6px;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Extracted Raw Text
+                    </span>
+                    {% if extracted_text %}
+                    <button class="btn-copy" onclick="copyExtractedText()" id="copy-btn">📋 Copy Text</button>
+                    {% endif %}
+                </div>
+
+                {% if extracted_text %}
+                <div class="stats-bar">
+                    <div class="stat-badge">Lines: <strong>{{ text_stats.line_count }}</strong></div>
+                    <div class="stat-badge">Words: <strong>{{ text_stats.word_count }}</strong></div>
+                    <div class="stat-badge">Characters: <strong>{{ text_stats.char_count }}</strong></div>
+                </div>
+
+                <div class="text-output-box" id="raw-text-container">{{ extracted_text }}</div>
+                {% else %}
+                <div style="text-align: center; padding: 4rem 1.5rem; color: var(--text-secondary);">
+                    <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-bottom: 1rem; opacity: 0.4;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                    <p style="font-size: 1rem; font-weight: 500;">No OCR Results Yet</p>
+                    <p style="font-size: 0.85rem; margin-top: 0.25rem;">Upload an invoice image on the left to extract raw text content.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        Invoice OCR Processing Engine &bull; Powered by Django &amp; Pytesseract
+    </footer>
+
+    <script>
+        const fileInput = document.getElementById('invoice-image-input');
+        const fileNameDisplay = document.getElementById('file-name-display');
+        const dropzone = document.getElementById('dropzone');
+
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    fileNameDisplay.textContent = 'Selected File: ' + this.files[0].name;
+                } else {
+                    fileNameDisplay.textContent = '';
+                }
+            });
+        }
+
+        if (dropzone) {
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    dropzone.classList.add('dragover');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    dropzone.classList.remove('dragover');
+                }, false);
+            });
+        }
+
+        function copyExtractedText() {
+            const container = document.getElementById('raw-text-container');
+            const btn = document.getElementById('copy-btn');
+            if (container) {
+                navigator.clipboard.writeText(container.innerText).then(() => {
+                    btn.textContent = '✓ Copied!';
+                    setTimeout(() => {
+                        btn.textContent = '📋 Copy Text';
+                    }, 2000);
+                });
+            }
+        }
+    </script>
+</body>
+</html>
