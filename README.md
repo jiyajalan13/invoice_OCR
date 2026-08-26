@@ -197,30 +197,9 @@ Create a PostgreSQL database named:
 invoice_ocr_db
 ```
 
-The current Django configuration expects:
 
-```text
-Host: localhost
-Port: 5432
-Database: invoice_ocr_db
-User: postgres
-Password: <your PostgreSQL password>
-```
 
-In `invoice_project/settings.py`, the database configuration is:
 
-```python
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'invoice_ocr_db',
-        'USER': 'postgres',
-        'PASSWORD': '<your PostgreSQL password>',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
-```
 
 **Security note:** Do not commit your real PostgreSQL password or Django secret key to GitHub. For production, use environment variables.
 
@@ -286,11 +265,6 @@ Start Django:
 python manage.py runserver
 ```
 
-Open:
-
-```text
-http://127.0.0.1:8000/
-```
 
 Upload a PNG or JPG/JPEG invoice.
 
